@@ -2,7 +2,6 @@
 
 # create multiplier2.circom file with contents from example
 
-# let's create Rank1 constraints system, saving it to .r1cs file and add it in .wasm file, allowing to build proofs on client's side with JS
 if [ ! $1 ]; then
     echo "You should pass <name> of the existing <name>.circom template to run all. Example: ./run_all.sh multiplier2"
     exit 1
@@ -43,6 +42,9 @@ if ! circom ${CIRNAME}.circom --r1cs --wasm; then
     exit 1
 fi
 
+echo "Info about ${CIRNAME}.circom R1CS constraints system"
+snarkjs info -c ${CIRNAME}.r1cs
+
 snarkjs groth16 setup ${CIRNAME}.r1cs ${CIRNAME}_pot_final.ptau ${CIRNAME}_0000.zkey
 
 # for tests we don't need second contribution
@@ -53,6 +55,10 @@ cp ${CIRNAME}_0000.zkey ${CIRNAME}_0001.zkey
 
 echo "exporting verification key from ${CIRNAME}_0001.zkey to ${CIRNAME}_verification_key.json"
 snarkjs zkey export verificationkey ${CIRNAME}_0001.zkey ${CIRNAME}_verification_key.json
+
+
+
+
 
 echo "Going to client\'s side into \"${CIRNAME}_js\" folder"
 cd ${CIRNAME}_js
@@ -70,6 +76,9 @@ time snarkjs groth16 prove ../${CIRNAME}_0001.zkey ${CIRNAME}_witness.wtns ${CIR
 
 echo "Checking proof of knowledge of private inputs for ${CIRNAME}_public.json using ${CIRNAME}_verification_key.json"
 time snarkjs groth16 verify ../${CIRNAME}_verification_key.json ${CIRNAME}_public.json ${CIRNAME}_proof.json
+
+
+
 
 set +x
 
