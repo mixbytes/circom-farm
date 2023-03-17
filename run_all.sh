@@ -2,6 +2,10 @@
 
 # create multiplier2.circom file with contents from example
 
+
+# Stop execution if any step returns non-zero (non success) status
+set -e
+
 if [ ! $1 ]; then
     echo "You should pass <name> of the existing <name>.circom template to run all. Example: ./run_all.sh multiplier2"
     exit 1
@@ -15,7 +19,7 @@ if [ ! -f ${CIRNAME}.circom ]; then
 fi
 
 
-set -x
+# set -x
 
 echo "Creating r1cs constraints system, saving to ${CIRNAME}.r1cs"
 if [ ! -f ${CIRNAME}_pot_0000.ptau ]
@@ -36,8 +40,8 @@ then
     snarkjs powersoftau prepare phase2 ${CIRNAME}_pot_0001.ptau ${CIRNAME}_pot_final.ptau -v
 fi
 
-
-if ! circom ${CIRNAME}.circom --r1cs --wasm; then
+echo "Building R1CS for circuit ${CIRNAME}.circom"
+if ! circom ${CIRNAME}.circom --r1cs --wasm --sym; then
     echo "${CIRNAME}.circom compilation to r1cs failed. Exiting..."
     exit 1
 fi
@@ -45,6 +49,8 @@ fi
 echo "Info about ${CIRNAME}.circom R1CS constraints system"
 snarkjs info -c ${CIRNAME}.r1cs
 
+# echo "Printing constraints
+# snarkjs r1cs print ${CIRNAME}.r1cs ${CIRNAME}.sym
 snarkjs groth16 setup ${CIRNAME}.r1cs ${CIRNAME}_pot_final.ptau ${CIRNAME}_0000.zkey
 
 # for tests we don't need second contribution
@@ -56,8 +62,8 @@ cp ${CIRNAME}_0000.zkey ${CIRNAME}_0001.zkey
 echo "exporting verification key from ${CIRNAME}_0001.zkey to ${CIRNAME}_verification_key.json"
 snarkjs zkey export verificationkey ${CIRNAME}_0001.zkey ${CIRNAME}_verification_key.json
 
-
-
+echo "Output size of ${CIRNAME}_verification_key.json"
+echo `du -kh "${CIRNAME}_verification_key.json"`
 
 
 echo "Going to client\'s side into \"${CIRNAME}_js\" folder"
@@ -72,14 +78,20 @@ node generate_witness.js ${CIRNAME}.wasm ${CIRNAME}_input.json ${CIRNAME}_witnes
 
 echo "Proving that we have a witness (our ${CIRNAME}_input.json in form of ${CIRNAME}_witness.wtn)"
 echo "Proof and public signals are saved to ${CIRNAME}_proof.json and ${CIRNAME}_public.json"
-time snarkjs groth16 prove ../${CIRNAME}_0001.zkey ${CIRNAME}_witness.wtns ${CIRNAME}_proof.json ${CIRNAME}_public.json
+/usr/bin/time -f "Prove time: %E" \
+    snarkjs groth16 prove ../${CIRNAME}_0001.zkey ${CIRNAME}_witness.wtns ${CIRNAME}_proof.json ${CIRNAME}_public.json
 
 echo "Checking proof of knowledge of private inputs for ${CIRNAME}_public.json using ${CIRNAME}_verification_key.json"
-time snarkjs groth16 verify ../${CIRNAME}_verification_key.json ${CIRNAME}_public.json ${CIRNAME}_proof.json
-
-
-
+/usr/bin/time -f "Verify time: %E" \
+    snarkjs groth16 verify ../${CIRNAME}_verification_key.json ${CIRNAME}_public.json ${CIRNAME}_proof.json
 
 set +x
+
+echo "Output sizes of client's side files":
+echo `du -kh "../${CIRNAME}_verification_key.json"`
+echo `du -kh "${CIRNAME}.wasm"`
+echo `du -kh "${CIRNAME}_witness.wtns"`
+
+
 
 
