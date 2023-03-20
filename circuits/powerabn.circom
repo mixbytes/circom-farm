@@ -28,4 +28,4 @@ template Multiplier2 (N) {
     c === d[i-1] * e[i-1];
 }
 
-component main = Multiplier2(32);
+component main = Multiplier2(200);

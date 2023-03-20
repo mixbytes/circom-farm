@@ -1,96 +1,120 @@
 #!/bin/bash
 
-# create multiplier2.circom file with contents from example
+# this is experimental, educational, dirty script, DO NOT USE IN PRODUCTION :)
 
+# you can rm all rebuildable files from the repo dir instead of "*.circom" and
+# maybe "powersOfTau28_hez_final_*.ptau" (large downloaded files)
 
 # Stop execution if any step returns non-zero (non success) status
 set -e
 
+CIRCUIT_NAME=$1
 if [ ! $1 ]; then
     echo "You should pass <name> of the existing <name>.circom template to run all. Example: ./run_all.sh multiplier2"
     exit 1
 fi
 
-CIRNAME=$1
+BUILD_DIR=build
+if [ ${#BUILD_DIR} -lt 1 ]; then 
+    echo "BUILD_DIR var is empty, exiting";
+    exit 1;
+fi
+echo "Removing previous build dir ./$BUILD_DIR to create new empty"
+rm -rf ./$BUILD_DIR
+if [ ! -d "$BUILD_DIR" ]; then
+    echo "No build directory '$BUILD_DIR'. Creating new"
+    mkdir "$BUILD_DIR"
+fi
+echo "Building circquit-related files in ./$BUILD_DIR"
 
-if [ ! -f ${CIRNAME}.circom ]; then
-    echo "${CIRNAME}.circom template desn't exist, exit..."
+
+# directory to keep PowersOfTau, zkeys, and other non-circuit-dependent files
+POTS_DIR=pots
+
+
+if [ ! -f circuits/${CIRCUIT_NAME}.circom ]; then
+    echo "circuits/${CIRCUIT_NAME}.circom template desn't exist, exit..."
     exit 2
 fi
 
-
-# set -x
-
-echo "Creating r1cs constraints system, saving to ${CIRNAME}.r1cs"
-if [ ! -f ${CIRNAME}_pot_0000.ptau ]
-then
-    snarkjs powersoftau new bn128 12 ${CIRNAME}_pot_0000.ptau -v
+POWERTAU=21
+# To generate setup by yourself, don't download below, use:
+# snarkjs powersoftau new bn128 ${POWERTAU} powersOfTau28_hez_final_${POWERTAU}.ptau -v
+if [ ! -f  ${POTS_DIR}/powersOfTau28_hez_final_${POWERTAU}.ptau ]; then 
+    echo "Downloading powersOfTau28_hez_final_${POWERTAU}.ptau from github (to skip generation)"
+    wget -O "${POTS_DIR}/powersOfTau28_hez_final_${POWERTAU}.ptau" \
+        "https://hermez.s3-eu-west-1.amazonaws.com/powersOfTau28_hez_final_${POWERTAU}.ptau"
+    echo "${POTS_DIR}/powersOfTau28_hez_final_${POWERTAU}.ptau downloaded "
+else
+    echo "${POTS_DIR}/powersOfTau28_hez_final_${POWERTAU}.ptau already exists, using current"
 fi
 
-# skip first contribution for tests
-# uncomment next line and comment "cp" to add contribution to the trusted setup
-
-# snarkjs powersoftau contribute ${CIRNAME}_pot_0000.ptau ${CIRNAME}_pot_0001.ptau --name="First contribution" -v
-cp ${CIRNAME}_pot_0000.ptau ${CIRNAME}_pot_0001.ptau
-
-# generate second part of trusted setup
-
-if [ ! -f ${CIRNAME}_pot_final.ptau ]
-then
-    snarkjs powersoftau prepare phase2 ${CIRNAME}_pot_0001.ptau ${CIRNAME}_pot_final.ptau -v
-fi
-
-echo "Building R1CS for circuit ${CIRNAME}.circom"
-if ! circom ${CIRNAME}.circom --r1cs --wasm --sym; then
-    echo "${CIRNAME}.circom compilation to r1cs failed. Exiting..."
+echo "Building R1CS for circuit ${CIRCUIT_NAME}.circom"
+if ! circom circuits/${CIRCUIT_NAME}.circom --r1cs --wasm --sym --output "$BUILD_DIR"; then
+    echo "circuits/${CIRCUIT_NAME}.circom compilation to r1cs failed. Exiting..."
     exit 1
 fi
+# set -x
 
-echo "Info about ${CIRNAME}.circom R1CS constraints system"
-snarkjs info -c ${CIRNAME}.r1cs
+echo "Info about circuits/${CIRCUIT_NAME}.circom R1CS constraints system"
+snarkjs info -c ${BUILD_DIR}/${CIRCUIT_NAME}.r1cs
 
 # echo "Printing constraints
-# snarkjs r1cs print ${CIRNAME}.r1cs ${CIRNAME}.sym
-snarkjs groth16 setup ${CIRNAME}.r1cs ${CIRNAME}_pot_final.ptau ${CIRNAME}_0000.zkey
+# snarkjs r1cs print ${BUILD_DIR}/${CIRCUIT_NAME}.r1cs ${BUILD_DIR}/${CIRCUIT_NAME}.sym
 
-# for tests we don't need second contribution
-# to enable it - uncomment next line and remove "cp" below
-# snarkjs zkey contribute ${CIRNAME}_0000.zkey ${CIRNAME}_0001.zkey --name="1st Contributor Name" -v
-echo "Skipping 2-nd contribution, just copy ${CIRNAME}_0000.zkey to ${CIRNAME}_0001.zkey"
-cp ${CIRNAME}_0000.zkey ${CIRNAME}_0001.zkey
+snarkjs groth16 setup ${BUILD_DIR}/${CIRCUIT_NAME}.r1cs ${POTS_DIR}/powersOfTau28_hez_final_${POWERTAU}.ptau \
+    ${BUILD_DIR}/${CIRCUIT_NAME}.zkey
 
-echo "exporting verification key from ${CIRNAME}_0001.zkey to ${CIRNAME}_verification_key.json"
-snarkjs zkey export verificationkey ${CIRNAME}_0001.zkey ${CIRNAME}_verification_key.json
+echo "Exporting verification key to ${BUILD_DIR}/${CIRCUIT_NAME}_verification_key.json"
+snarkjs zkey export verificationkey ${BUILD_DIR}/${CIRCUIT_NAME}.zkey \
+    ${BUILD_DIR}/${CIRCUIT_NAME}_verification_key.json
 
-echo "Output size of ${CIRNAME}_verification_key.json"
-echo `du -kh "${CIRNAME}_verification_key.json"`
+echo "Output size of ${BUILD_DIR}/${CIRCUIT_NAME}_verification_key.json"
+echo `du -kh "${BUILD_DIR}/${CIRCUIT_NAME}_verification_key.json"`
 
 
-echo "Going to client\'s side into \"${CIRNAME}_js\" folder"
-cd ${CIRNAME}_js
+echo " "
+echo "############################################"
+echo "Going to client's side into \"${BUILD_DIR}/${CIRCUIT_NAME}_js\" folder"
+cd ${BUILD_DIR}/${CIRCUIT_NAME}_js
+
 
 # insert construction of inputs here
-echo "Create inputs in ${CIRNAME}_input.json"
-echo "{\"a\": \"3\", \"b\": \"11\"}" > ${CIRNAME}_input.json
+echo "Create inputs for circuit '$CIRCUIT_NAME' in ${CIRCUIT_NAME}_input.json"
+if [[ $CIRCUIT_NAME == "multiplier2" ]]; then
+    echo "{\"a\": \"3\", \"b\": \"11\"}" > ./${CIRCUIT_NAME}_input.json
+elif [[ $CIRCUIT_NAME == "powerabn" ]]; then
+    echo "{\"a\": \"3\", \"b\": \"11\"}" > ./${CIRCUIT_NAME}_input.json
+elif [[ $CIRCUIT_NAME == "keccakn" ]]; then
+    echo "{\"a\": \"[FIXME]\"}" > ./${CIRCUIT_NAME}_input.json
+else
+    echo "fuck you"
+fi
 
-echo "Generate witness from ${CIRNAME}_input.json, using ${CIRNAME}.wasm, saving to ${CIRNAME}_witness.wtns"
-node generate_witness.js ${CIRNAME}.wasm ${CIRNAME}_input.json ${CIRNAME}_witness.wtns
 
-echo "Proving that we have a witness (our ${CIRNAME}_input.json in form of ${CIRNAME}_witness.wtn)"
-echo "Proof and public signals are saved to ${CIRNAME}_proof.json and ${CIRNAME}_public.json"
+echo "Generate witness from ${CIRCUIT_NAME}_input.json, using ${CIRCUIT_NAME}.wasm, saving to ${CIRCUIT_NAME}_witness.wtns"
+node generate_witness.js ${CIRCUIT_NAME}.wasm ./${CIRCUIT_NAME}_input.json \
+    ./${CIRCUIT_NAME}_witness.wtns
+
+echo "Starting proving that we have a witness (our ${CIRCUIT_NAME}_input.json in form of ${CIRCUIT_NAME}_witness.wtn)"
+echo "Proof and public signals are saved to ${CIRCUIT_NAME}_proof.json and ${CIRCUIT_NAME}_public.json"
 /usr/bin/time -f "Prove time: %E" \
-    snarkjs groth16 prove ../${CIRNAME}_0001.zkey ${CIRNAME}_witness.wtns ${CIRNAME}_proof.json ${CIRNAME}_public.json
+    snarkjs groth16 prove ../${CIRCUIT_NAME}.zkey ./${CIRCUIT_NAME}_witness.wtns \
+        ./${CIRCUIT_NAME}_proof.json \
+        ./${CIRCUIT_NAME}_public.json
 
-echo "Checking proof of knowledge of private inputs for ${CIRNAME}_public.json using ${CIRNAME}_verification_key.json"
+echo "Checking proof of knowledge of private inputs for ${CIRCUIT_NAME}_public.json using ${CIRCUIT_NAME}_verification_key.json"
 /usr/bin/time -f "Verify time: %E" \
-    snarkjs groth16 verify ../${CIRNAME}_verification_key.json ${CIRNAME}_public.json ${CIRNAME}_proof.json
+    snarkjs groth16 verify ../${CIRCUIT_NAME}_verification_key.json \
+        ./${CIRCUIT_NAME}_public.json \
+        ./${CIRCUIT_NAME}_proof.json
 
 set +x
 
 echo "Output sizes of client's side files":
-echo `du -kh "../${CIRNAME}_verification_key.json"`
-echo `du -kh "${CIRNAME}.wasm"`
-echo `du -kh "${CIRNAME}_witness.wtns"`
+echo `du -kh "../${CIRCUIT_NAME}_verification_key.json"`
+echo `du -kh "${CIRCUIT_NAME}.wasm"`
+echo `du -kh "${CIRCUIT_NAME}_witness.wtns"`
 
 
 
