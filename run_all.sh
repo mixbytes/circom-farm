@@ -93,6 +93,8 @@ elif [[ $CIRCUIT_NAME == "powerabn" ]]; then
     echo "{\"a\": \"3\", \"b\": \"11\"}" > ./${CIRCUIT_NAME}_input.json
 elif [[ $CIRCUIT_NAME == "keccakn" ]]; then
     echo "{\"a\": \"1\"}" > ./${CIRCUIT_NAME}_input.json
+elif [[ $CIRCUIT_NAME == "mimcn" ]]; then
+    echo "{\"a\": \"1\"}" > ./${CIRCUIT_NAME}_input.json
 else
     echo "no input"
     exit 1
