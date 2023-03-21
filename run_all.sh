@@ -54,7 +54,7 @@ if ! circom circuits/${CIRCUIT_NAME}.circom --r1cs --wasm --sym --output "$BUILD
     echo "circuits/${CIRCUIT_NAME}.circom compilation to r1cs failed. Exiting..."
     exit 1
 fi
-# set -x
+set -x
 
 echo "Info about circuits/${CIRCUIT_NAME}.circom R1CS constraints system"
 snarkjs info -c ${BUILD_DIR}/${CIRCUIT_NAME}.r1cs
@@ -86,7 +86,7 @@ if [[ $CIRCUIT_NAME == "multiplier2" ]]; then
 elif [[ $CIRCUIT_NAME == "powerabn" ]]; then
     echo "{\"a\": \"3\", \"b\": \"11\"}" > ./${CIRCUIT_NAME}_input.json
 elif [[ $CIRCUIT_NAME == "keccakn" ]]; then
-    echo "{\"a\": \"[FIXME]\"}" > ./${CIRCUIT_NAME}_input.json
+    echo "{\"a\": \"112321321321\"}" > ./${CIRCUIT_NAME}_input.json
 else
     echo "fuck you"
 fi
