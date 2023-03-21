@@ -25,19 +25,25 @@ if [ ! -d "$BUILD_DIR" ]; then
     echo "No build directory '$BUILD_DIR'. Creating new"
     mkdir "$BUILD_DIR"
 fi
-echo "Building circquit-related files in ./$BUILD_DIR"
+echo "Building circuit-related files in ./$BUILD_DIR"
 
+
+
+if [ ! -f circuits/${CIRCUIT_NAME}.circom ]; then
+    echo "circuits/${CIRCUIT_NAME}.circom template doesn't exist, exit..."
+    exit 2
+fi
 
 # directory to keep PowersOfTau, zkeys, and other non-circuit-dependent files
 POTS_DIR=pots
 
 
-if [ ! -f circuits/${CIRCUIT_NAME}.circom ]; then
-    echo "circuits/${CIRCUIT_NAME}.circom template desn't exist, exit..."
-    exit 2
-fi
-
+# power value for "powersOfTau28" pre-generated setup files
 POWERTAU=21
+
+# uncomment to output every actual command being run
+# set -x
+
 # To generate setup by yourself, don't download below, use:
 # snarkjs powersoftau new bn128 ${POWERTAU} powersOfTau28_hez_final_${POWERTAU}.ptau -v
 if [ ! -f  ${POTS_DIR}/powersOfTau28_hez_final_${POWERTAU}.ptau ]; then 
@@ -50,12 +56,11 @@ else
 fi
 
 echo "Building R1CS for circuit ${CIRCUIT_NAME}.circom"
-if ! /usr/bin/time -f "R1CS gen time: %E" circom circuits/${CIRCUIT_NAME}.circom --r1cs --wasm --sym --output "$BUILD_DIR"; then
+if ! /usr/bin/time -f "[PROFILE] R1CS gen time: %E" circom circuits/${CIRCUIT_NAME}.circom --r1cs --wasm --sym --output "$BUILD_DIR"; then
     echo "circuits/${CIRCUIT_NAME}.circom compilation to r1cs failed. Exiting..."
     exit 1
 fi
 
-set -x
 
 # echo "Info about circuits/${CIRCUIT_NAME}.circom R1CS constraints system"
 # snarkjs info -c ${BUILD_DIR}/${CIRCUIT_NAME}.r1cs
@@ -71,7 +76,7 @@ snarkjs zkey export verificationkey ${BUILD_DIR}/${CIRCUIT_NAME}.zkey \
     ${BUILD_DIR}/${CIRCUIT_NAME}_verification_key.json
 
 echo "Output size of ${BUILD_DIR}/${CIRCUIT_NAME}_verification_key.json"
-echo `du -kh "${BUILD_DIR}/${CIRCUIT_NAME}_verification_key.json"`
+echo "[PROFILE]" `du -kh "${BUILD_DIR}/${CIRCUIT_NAME}_verification_key.json"`
 
 
 echo " "
@@ -87,26 +92,27 @@ if [[ $CIRCUIT_NAME == "multiplier2" ]]; then
 elif [[ $CIRCUIT_NAME == "powerabn" ]]; then
     echo "{\"a\": \"3\", \"b\": \"11\"}" > ./${CIRCUIT_NAME}_input.json
 elif [[ $CIRCUIT_NAME == "keccakn" ]]; then
-    echo "{\"a\": \"20\"}" > ./${CIRCUIT_NAME}_input.json
+    echo "{\"a\": \"1\"}" > ./${CIRCUIT_NAME}_input.json
 else
-    echo "fuck you, no input, do it yourself in "
+    echo "no input"
     exit 1
 fi
 
 
 echo "Generate witness from ${CIRCUIT_NAME}_input.json, using ${CIRCUIT_NAME}.wasm, saving to ${CIRCUIT_NAME}_witness.wtns"
-node generate_witness.js ${CIRCUIT_NAME}.wasm ./${CIRCUIT_NAME}_input.json \
-    ./${CIRCUIT_NAME}_witness.wtns
+/usr/bin/time -f "[PROFILE] Witness generation time: %E" \
+    node generate_witness.js ${CIRCUIT_NAME}.wasm ./${CIRCUIT_NAME}_input.json \
+        ./${CIRCUIT_NAME}_witness.wtns
 
 echo "Starting proving that we have a witness (our ${CIRCUIT_NAME}_input.json in form of ${CIRCUIT_NAME}_witness.wtn)"
 echo "Proof and public signals are saved to ${CIRCUIT_NAME}_proof.json and ${CIRCUIT_NAME}_public.json"
-/usr/bin/time -f "Prove time: %E" \
+/usr/bin/time -f "[PROFILE] Prove time: %E" \
     snarkjs groth16 prove ../${CIRCUIT_NAME}.zkey ./${CIRCUIT_NAME}_witness.wtns \
         ./${CIRCUIT_NAME}_proof.json \
         ./${CIRCUIT_NAME}_public.json
 
 echo "Checking proof of knowledge of private inputs for ${CIRCUIT_NAME}_public.json using ${CIRCUIT_NAME}_verification_key.json"
-/usr/bin/time -f "Verify time: %E" \
+/usr/bin/time -f "[PROFILE] Verify time: %E" \
     snarkjs groth16 verify ../${CIRCUIT_NAME}_verification_key.json \
         ./${CIRCUIT_NAME}_public.json \
         ./${CIRCUIT_NAME}_proof.json
@@ -114,10 +120,9 @@ echo "Checking proof of knowledge of private inputs for ${CIRCUIT_NAME}_public.j
 set +x
 
 echo "Output sizes of client's side files":
-echo `du -kh "../${CIRCUIT_NAME}_verification_key.json"`
-echo `du -kh "${CIRCUIT_NAME}.wasm"`
-echo `du -kh "${CIRCUIT_NAME}_witness.wtns"`
-
+echo "[PROFILE]" `du -kh "../${CIRCUIT_NAME}_verification_key.json"`
+echo "[PROFILE]" `du -kh "${CIRCUIT_NAME}.wasm"`
+echo "[PROFILE]" `du -kh "${CIRCUIT_NAME}_witness.wtns"`
 
 
 
