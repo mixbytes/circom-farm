@@ -50,14 +50,15 @@ else
 fi
 
 echo "Building R1CS for circuit ${CIRCUIT_NAME}.circom"
-if ! circom circuits/${CIRCUIT_NAME}.circom --r1cs --wasm --sym --output "$BUILD_DIR"; then
+if ! /usr/bin/time -f "R1CS gen time: %E" circom circuits/${CIRCUIT_NAME}.circom --r1cs --wasm --sym --output "$BUILD_DIR"; then
     echo "circuits/${CIRCUIT_NAME}.circom compilation to r1cs failed. Exiting..."
     exit 1
 fi
+
 set -x
 
-echo "Info about circuits/${CIRCUIT_NAME}.circom R1CS constraints system"
-snarkjs info -c ${BUILD_DIR}/${CIRCUIT_NAME}.r1cs
+# echo "Info about circuits/${CIRCUIT_NAME}.circom R1CS constraints system"
+# snarkjs info -c ${BUILD_DIR}/${CIRCUIT_NAME}.r1cs
 
 # echo "Printing constraints
 # snarkjs r1cs print ${BUILD_DIR}/${CIRCUIT_NAME}.r1cs ${BUILD_DIR}/${CIRCUIT_NAME}.sym
@@ -86,9 +87,10 @@ if [[ $CIRCUIT_NAME == "multiplier2" ]]; then
 elif [[ $CIRCUIT_NAME == "powerabn" ]]; then
     echo "{\"a\": \"3\", \"b\": \"11\"}" > ./${CIRCUIT_NAME}_input.json
 elif [[ $CIRCUIT_NAME == "keccakn" ]]; then
-    echo "{\"a\": \"112321321321\"}" > ./${CIRCUIT_NAME}_input.json
+    echo "{\"a\": \"20\"}" > ./${CIRCUIT_NAME}_input.json
 else
-    echo "fuck you"
+    echo "fuck you, no input, do it yourself in "
+    exit 1
 fi
 
 
