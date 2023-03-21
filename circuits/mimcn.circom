@@ -24,4 +24,4 @@ template MiMCN(N) {
     out <== mimc[j-1].out;
 }
 
-component main = MiMCN(512);
+component main = MiMCN(256);
