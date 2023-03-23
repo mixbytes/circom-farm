@@ -23,4 +23,4 @@ template PowerABN(N) {
     c === d[i-1] * e[i-1];
 }
 
-component main = PowerABN(2);
+component main = PowerABN(3);

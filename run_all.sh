@@ -39,7 +39,7 @@ POTS_DIR=pots
 
 
 # power value for "powersOfTau28" pre-generated setup files
-POWERTAU=12
+POWERTAU=21
 
 # uncomment to output every actual command being run
 # set -x
@@ -122,7 +122,6 @@ echo "Checking proof of knowledge of private inputs for ${CIRCUIT_NAME}_public.j
 set +x
 
 echo "Output sizes of client's side files":
-echo "[PROFILE]" `du -kh "../${CIRCUIT_NAME}_verification_key.json"`
 echo "[PROFILE]" `du -kh "${CIRCUIT_NAME}.wasm"`
 echo "[PROFILE]" `du -kh "${CIRCUIT_NAME}_witness.wtns"`
 
