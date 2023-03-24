@@ -10,8 +10,8 @@ template PowerABN(N) {
     signal e[N + 1];
     
     var i = 1;
-    d[0] <-- 1;
-    e[0] <-- 1;
+    d[0] <== 1;
+    e[0] <== 1;
     
     while (i <= N) {
         d[i] <== a * d[i-1];
@@ -19,8 +19,7 @@ template PowerABN(N) {
         i++;        
     }
     
-    c <-- d[i-1] * e[i-1]; 
-    c === d[i-1] * e[i-1];
+    c <== d[i-1] * e[i-1]; 
 }
 
 component main = PowerABN(3);
