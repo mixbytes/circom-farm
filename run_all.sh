@@ -2,9 +2,6 @@
 
 # this is experimental, educational, dirty script, DO NOT USE IN PRODUCTION :)
 
-# you can rm all rebuildable files from the repo dir instead of "*.circom" and
-# maybe "powersOfTau28_hez_final_*.ptau" (large downloaded files)
-
 # Stop execution if any step returns non-zero (non success) status
 set -e
 
@@ -17,21 +14,18 @@ fi
 BUILD_DIR=build
 if [ ${#BUILD_DIR} -lt 1 ]; then 
     echo "BUILD_DIR var is empty, exiting";
-    exit 1;
+    exit 2;
 fi
 echo "Removing previous build dir ./$BUILD_DIR to create new empty"
 rm -rf ./$BUILD_DIR
 if [ ! -d "$BUILD_DIR" ]; then
-    echo "No build directory '$BUILD_DIR'. Creating new"
+    echo "Creating new buld dir: '$BUILD_DIR'"
     mkdir "$BUILD_DIR"
 fi
-echo "Building circuit-related files in ./$BUILD_DIR"
-
-
 
 if [ ! -f circuits/${CIRCUIT_NAME}.circom ]; then
     echo "circuits/${CIRCUIT_NAME}.circom template doesn't exist, exit..."
-    exit 2
+    exit 3
 fi
 
 # directory to keep PowersOfTau, zkeys, and other non-circuit-dependent files
@@ -58,12 +52,12 @@ fi
 echo "Building R1CS for circuit ${CIRCUIT_NAME}.circom"
 if ! /usr/bin/time -f "[PROFILE] R1CS gen time: %E" circom circuits/${CIRCUIT_NAME}.circom --r1cs --wasm --sym --output "$BUILD_DIR"; then
     echo "circuits/${CIRCUIT_NAME}.circom compilation to r1cs failed. Exiting..."
-    exit 1
+    exit 4
 fi
 
 
-# echo "Info about circuits/${CIRCUIT_NAME}.circom R1CS constraints system"
-# snarkjs info -c ${BUILD_DIR}/${CIRCUIT_NAME}.r1cs
+echo "Info about circuits/${CIRCUIT_NAME}.circom R1CS constraints system"
+snarkjs info -c ${BUILD_DIR}/${CIRCUIT_NAME}.r1cs
 
 # echo "Printing constraints
 # snarkjs r1cs print ${BUILD_DIR}/${CIRCUIT_NAME}.r1cs ${BUILD_DIR}/${CIRCUIT_NAME}.sym
@@ -94,6 +88,8 @@ elif [[ $CIRCUIT_NAME == "powerabn" ]]; then
 elif [[ $CIRCUIT_NAME == "keccakn" ]]; then
     echo "{\"a\": \"1\"}" > ./${CIRCUIT_NAME}_input.json
 elif [[ $CIRCUIT_NAME == "mimcn" ]]; then
+    echo "{\"a\": \"1\"}" > ./${CIRCUIT_NAME}_input.json
+elif [[ $CIRCUIT_NAME == "pedersenn" ]]; then
     echo "{\"a\": \"1\"}" > ./${CIRCUIT_NAME}_input.json
 else
     echo "no input"
