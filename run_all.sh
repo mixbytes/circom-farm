@@ -38,6 +38,9 @@ POWERTAU=21
 # uncomment to output every actual command being run
 # set -x
 
+# create dir for downloaded 'powersOfTau28*' files if doesn't exist
+mkdir -p ${POTS_DIR}
+
 # To generate setup by yourself, don't download below, use:
 # snarkjs powersoftau new bn128 ${POWERTAU} powersOfTau28_hez_final_${POWERTAU}.ptau -v
 if [ ! -f  ${POTS_DIR}/powersOfTau28_hez_final_${POWERTAU}.ptau ]; then 
